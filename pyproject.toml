@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.isort]
+profile = 'black'
+
+[tool.poetry]
+name = "draw-and-guess"
+version = "0.1.0"
+description = "多人联机你画我猜游戏"
+authors = ["Your Team <team@example.com>"]
