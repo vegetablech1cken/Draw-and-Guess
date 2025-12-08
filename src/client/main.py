@@ -8,7 +8,7 @@ import logging
 import sys
 from pathlib import Path
 import math
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 # 添加项目根目录到路径（保留以便直接运行脚本时能找到包）
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -70,7 +70,8 @@ def load_logo(path: Path, screen_size: tuple):
         return None, (0, 0), (0, 0)
 
     base_h = max(1, int(base_w * orig_h / orig_w))
-    anchor_pos = (sw // 2, int(sh * 0.02))
+    # anchor at top-right with small margin from the screen edge
+    anchor_pos = (sw - int(sw * 0.04), int(sh * 0.04))
     return orig, (base_w, base_h), anchor_pos
 
 
@@ -130,6 +131,7 @@ def create_buttons_from_config(
     config_list: List[Dict[str, Any]],
     callbacks_map: Dict[str, Callable[..., Any]],
     screen_size: tuple,
+    logo_anchor: Optional[tuple] = None,
 ) -> List[Button]:
     """Create and return Button instances from configuration.
 
@@ -169,10 +171,20 @@ def create_buttons_from_config(
         if cb_name and cb_name in callbacks_map:
             BUTTON_CALLBACKS[id(btn)] = callbacks_map[cb_name]
 
+        # compute target_x; respect explicit position from cfg by default.
+        # If config sets `align_to_logo: True` and a logo_anchor is provided,
+        # align the button's right edge to the logo's right edge minus optional gap.
+        if cfg.get("align_to_logo") and logo_anchor is not None:
+            logo_right_x = int(logo_anchor[0])
+            gap = int(cfg.get("align_gap", 0))
+            target_x = logo_right_x - w - gap
+        else:
+            target_x = x
+
         # register animation state for slide-in from right
         BUTTON_ANIMS[id(btn)] = {
             "start_x": start_x,
-            "target_x": x,
+            "target_x": target_x,
             "y": y,
             "duration": BUTTON_SLIDE_DURATION,
             "delay": idx * BUTTON_STAGGER,
@@ -223,7 +235,7 @@ def main() -> None:
         clock = pygame.time.Clock()
         running = True
 
-        buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size())
+        buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size(), logo_anchor)
 
         while running:
             for event in pygame.event.get():
@@ -231,8 +243,9 @@ def main() -> None:
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
                     screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-                    buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size())
+                    # reload logo for new size, then recreate buttons aligned to logo
                     logo_orig, logo_base_size, logo_anchor = load_logo(LOGO_PATH, screen.get_size())
+                    buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size(), logo_anchor)
                 elif event.type == pygame.MOUSEMOTION:
                     mouse_pos = event.pos
                     for b in buttons:
@@ -269,8 +282,8 @@ def main() -> None:
 
                 rotated = pygame.transform.rotate(scaled, angle)
                 rrect = rotated.get_rect()
-                # keep same midtop anchor as base
-                rrect.midtop = logo_anchor
+                # place logo using top-right anchor
+                rrect.topright = logo_anchor
                 screen.blit(rotated, rrect)
 
             # Update button slide-in animations

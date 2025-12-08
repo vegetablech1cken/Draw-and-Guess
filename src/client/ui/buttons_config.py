@@ -1,7 +1,7 @@
 BUTTONS_CONFIG = [
     {
         "id": "start",
-        "x_pct": 0.80,
+        "x_pct": 0.75,
         "y_pct": 0.50,
         "w": 200,
         "h": 50,
@@ -14,7 +14,7 @@ BUTTONS_CONFIG = [
     },
     {
         "id": "settings",
-        "x_pct": 0.80,
+        "x_pct": 0.75,
         "y_pct": 0.60,
         "w": 200,
         "h": 50,
@@ -27,7 +27,7 @@ BUTTONS_CONFIG = [
     },
     {
         "id": "quit",
-        "x_pct": 0.80,
+        "x_pct": 0.75,
         "y_pct": 0.70,
         "w": 200,
         "h": 50,
