@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 BUTTON_ORIG_BG: Dict[int, tuple] = {}
 BUTTON_HOVER_BG: Dict[int, tuple] = {}
 BUTTON_CALLBACKS: Dict[int, Callable[..., Any]] = {}
+BUTTON_ANIMS: Dict[int, Dict[str, Any]] = {}
 
 
 # Assets and logo path (adjust if you keep logo elsewhere)
@@ -44,6 +45,11 @@ LOGO_BREATH_AMPLITUDE = 0.06  # 6% size variation
 LOGO_BREATH_FREQ = 0.2  # Hz
 LOGO_SWING_AMP = 3.0  # degrees
 LOGO_SWING_FREQ = 0.1  # Hz
+
+# Button entrance animation parameters
+BUTTON_SLIDE_DURATION = 1.0  # seconds
+BUTTON_STAGGER = 0.2  # seconds between staggered starts
+
 
 
 def load_logo(path: Path, screen_size: tuple):
@@ -131,11 +137,13 @@ def create_buttons_from_config(
     module-level dictionaries for runtime use.
     """
     buttons: List[Button] = []
-    for cfg in config_list:
+    for idx, cfg in enumerate(config_list):
         x, y, w, h = resolve_position_and_size(cfg, screen_size)
 
+        # start off-screen to the right
+        start_x = screen_size[0] + 20 + idx * 8
         btn = Button(
-            x=x,
+            x=start_x,
             y=y,
             width=w,
             height=h,
@@ -160,6 +168,16 @@ def create_buttons_from_config(
         cb_name = cfg.get("callback")
         if cb_name and cb_name in callbacks_map:
             BUTTON_CALLBACKS[id(btn)] = callbacks_map[cb_name]
+
+        # register animation state for slide-in from right
+        BUTTON_ANIMS[id(btn)] = {
+            "start_x": start_x,
+            "target_x": x,
+            "y": y,
+            "duration": BUTTON_SLIDE_DURATION,
+            "delay": idx * BUTTON_STAGGER,
+            "finished": False,
+        }
 
         buttons.append(btn)
 
@@ -254,6 +272,27 @@ def main() -> None:
                 # keep same midtop anchor as base
                 rrect.midtop = logo_anchor
                 screen.blit(rotated, rrect)
+
+            # Update button slide-in animations
+            now = pygame.time.get_ticks() / 1000.0
+            for b in buttons:
+                anim = BUTTON_ANIMS.get(id(b))
+                if anim and not anim.get("finished", False):
+                    elapsed = now - anim.get("delay", 0)
+                    dur = anim.get("duration", 0.5)
+                    if elapsed <= 0:
+                        # not started yet; ensure off-screen position
+                        b.set_position(anim["start_x"], anim["y"])
+                    else:
+                        prog = min(1.0, elapsed / dur)
+                        # ease out cubic
+                        eased = 1 - pow(1 - prog, 3)
+                        sx = anim["start_x"]
+                        tx = anim["target_x"]
+                        cur_x = int(sx + (tx - sx) * eased)
+                        b.set_position(cur_x, anim["y"])
+                        if prog >= 1.0:
+                            anim["finished"] = True
 
             for b in buttons:
                 b.draw(screen)
