@@ -28,6 +28,11 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f requirements/dev.txt ]; then pip install -r requirements/dev.txt; fi
+    - name: Install package (editable)
+      run: |
+        # install the repository as an editable package so tests can import `src`
+        python -m pip install --upgrade pip
+        pip install -e .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
