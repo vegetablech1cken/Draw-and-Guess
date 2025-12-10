@@ -18,7 +18,8 @@ jobs:
 
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      # include the python version so different matrix entries don't cancel each other
+      group: ${{ github.workflow }}-${{ github.ref }}-py${{ matrix.python-version }}
       cancel-in-progress: true
     strategy:
       matrix:
