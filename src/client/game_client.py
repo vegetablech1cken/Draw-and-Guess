@@ -119,7 +119,7 @@ class GameClient:
     def on_draw(self, data: dict):
         """处理绘图数据"""
         self.canvas.draw_from_network(
-            data["x"], data["y"], data["prev_x"], data["prev_y"], data["color"], data["size"]
+            data["prev_x"], data["prev_y"], data["x"], data["y"], data["color"], data["size"]
         )
 
     def on_game_started(self, data: dict):
@@ -264,7 +264,14 @@ class GameClient:
     def run(self):
         """运行游戏循环"""
         # 连接到服务器
-        player_name = input("请输入你的名字: ")
+        import sys
+        
+        # 检查是否有命令行参数
+        if len(sys.argv) > 1:
+            player_name = sys.argv[1]
+        else:
+            player_name = input("请输入你的名字: ")
+        
         if not self.connect_to_server(player_name):
             logger.error("无法连接到服务器")
             return

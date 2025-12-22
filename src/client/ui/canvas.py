@@ -130,16 +130,16 @@ class Canvas:
         self.last_pos = None
 
     def draw_from_network(
-        self, x: int, y: int, prev_x: int, prev_y: int, color: List[int], size: int
+        self, prev_x: int, prev_y: int, x: int, y: int, color: List[int], size: int
     ):
         """
         根据网络数据绘制
 
         Args:
-            x: 目标X坐标
-            y: 目标Y坐标
             prev_x: 起始X坐标
             prev_y: 起始Y坐标
+            x: 目标X坐标
+            y: 目标Y坐标
             color: 颜色列表
             size: 画笔大小
         """

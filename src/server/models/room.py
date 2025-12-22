@@ -111,7 +111,19 @@ class Room:
         if player_id in self.guessed_players:
             return False
 
-        is_correct = guess.strip().lower() == self.current_word.lower()
+        # 标准化Unicode文本，去除空格和标点
+        import unicodedata
+        
+        def normalize(text: str) -> str:
+            # 转换为Unicode NFC标准化形式
+            text = unicodedata.normalize('NFC', text)
+            # 转换为小写（对英文有效）
+            text = text.lower()
+            # 去除空格
+            text = text.strip()
+            return text
+        
+        is_correct = normalize(guess) == normalize(self.current_word)
         if is_correct:
             self.guessed_players.append(player_id)
             # 猜对的玩家得分

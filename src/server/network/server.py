@@ -9,6 +9,7 @@ import threading
 import logging
 import json
 import uuid
+import random
 from typing import Dict, Optional
 
 from src.shared.constants import BUFFER_SIZE
@@ -268,44 +269,47 @@ class GameServer:
         try:
             with open("data/words.txt", "r", encoding="utf-8") as f:
                 words = [line.strip() for line in f if line.strip()]
-            if words:
-                import random
+            if not words:
+                logger.error("词库文件为空")
+                return
+            
+            word = random.choice(words)
+            room.start_round(word)
 
-                word = random.choice(words)
-                room.start_round(word)
-
-                # 通知所有玩家游戏开始
-                for player_id, player in room.players.items():
-                    if player.is_drawing:
-                        # 告诉画家词语
-                        self._send_message(
-                            player.conn,
-                            {
-                                "type": "game_started",
-                                "data": {
-                                    "word": word,
-                                    "is_drawer": True,
-                                    "round": room.round_number,
-                                },
+            # 通知所有玩家游戏开始
+            for player_id, player in room.players.items():
+                if player.is_drawing:
+                    # 告诉画家词语
+                    self._send_message(
+                        player.conn,
+                        {
+                            "type": "game_started",
+                            "data": {
+                                "word": word,
+                                "is_drawer": True,
+                                "round": room.round_number,
                             },
-                        )
-                    else:
-                        # 告诉其他玩家游戏开始
-                        self._send_message(
-                            player.conn,
-                            {
-                                "type": "game_started",
-                                "data": {
-                                    "is_drawer": False,
-                                    "round": room.round_number,
-                                    "drawer_name": room.players[
-                                        room.current_drawer
-                                    ].name,
-                                },
+                        },
+                    )
+                else:
+                    # 告诉其他玩家游戏开始
+                    self._send_message(
+                        player.conn,
+                        {
+                            "type": "game_started",
+                            "data": {
+                                "is_drawer": False,
+                                "round": room.round_number,
+                                "drawer_name": room.players[
+                                    room.current_drawer
+                                ].name,
                             },
-                        )
+                        },
+                    )
 
-                logger.info(f"房间 {room_id} 游戏开始，词语: {word}")
+            logger.info(f"房间 {room_id} 游戏开始，词语: {word}")
+        except FileNotFoundError:
+            logger.error("词库文件 data/words.txt 不存在")
         except Exception as e:
             logger.error(f"开始游戏失败: {e}")
 
