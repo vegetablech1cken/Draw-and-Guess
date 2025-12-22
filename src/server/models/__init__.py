@@ -4,4 +4,7 @@
 定义游戏中的数据结构，如玩家、房间、游戏状态等。
 """
 
-# TODO: 实现数据模型
+from .player import Player
+from .room import Room
+
+__all__ = ["Player", "Room"]

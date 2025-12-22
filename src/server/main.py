@@ -31,17 +31,27 @@ def main():
     logger.info("=" * 50)
 
     try:
-        # TODO: 实现服务器启动逻辑
-        logger.info("服务器运行中，按 Ctrl+C 停止")
+        # 导入并创建服务器
+        from src.server.network import GameServer
 
-        # 保持服务器运行
-        import time
+        server = GameServer(DEFAULT_HOST, DEFAULT_PORT)
 
-        while True:
-            time.sleep(1)
+        # 启动服务器
+        if server.start():
+            logger.info("服务器运行中，按 Ctrl+C 停止")
+
+            # 保持服务器运行
+            import time
+
+            while True:
+                time.sleep(1)
+        else:
+            logger.error("服务器启动失败")
 
     except KeyboardInterrupt:
         logger.info("\n服务器正在关闭...")
+        if "server" in locals():
+            server.stop()
     except Exception as e:
         logger.error(f"服务器错误: {e}", exc_info=True)
     finally:
