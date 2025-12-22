@@ -5,6 +5,7 @@
 """
 
 import random
+import unicodedata
 from typing import Dict, List, Optional
 from .player import Player
 
@@ -112,8 +113,6 @@ class Room:
             return False
 
         # 标准化Unicode文本，去除空格和标点
-        import unicodedata
-        
         def normalize(text: str) -> str:
             # 转换为Unicode NFC标准化形式
             text = unicodedata.normalize('NFC', text)
@@ -126,9 +125,9 @@ class Room:
         is_correct = normalize(guess) == normalize(self.current_word)
         if is_correct:
             self.guessed_players.append(player_id)
-            # 猜对的玩家得分
+            # 猜对的玩家得分（第一个猜对得100分）
             if player_id in self.players:
-                points = 100 - len(self.guessed_players) * 10  # 越早猜对分数越高
+                points = 100 - (len(self.guessed_players) - 1) * 10  # 越早猜对分数越高
                 self.players[player_id].add_score(max(10, points))
 
         return is_correct

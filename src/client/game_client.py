@@ -264,8 +264,6 @@ class GameClient:
     def run(self):
         """运行游戏循环"""
         # 连接到服务器
-        import sys
-        
         # 检查是否有命令行参数
         if len(sys.argv) > 1:
             player_name = sys.argv[1]
