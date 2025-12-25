@@ -87,9 +87,9 @@ class Toolbar:
                 return
 
     def draw(self, screen: pygame.Surface) -> None:
-        # 背景与边框
-        pygame.draw.rect(screen, (245, 245, 245), self.rect)
-        pygame.draw.rect(screen, (200, 200, 200), self.rect, 2)
+        # 背景与边框 - 使用更好看的渐变效果（通过矩形堆叠模拟）
+        pygame.draw.rect(screen, (240, 240, 245), self.rect)  # 浅蓝白色背景
+        pygame.draw.rect(screen, (180, 190, 220), self.rect, 3)  # 更深的蓝色边框
 
         pad = 8
         swatch_size = 28
@@ -97,42 +97,53 @@ class Toolbar:
         title = self.font.render("工具栏", True, (60, 60, 60))
         screen.blit(title, (self.rect.x + pad, self.rect.y + pad))
 
-        # 颜色调色板
+        # 颜色调色板 - 添加阴影效果
         cols_per_row = max(1, (self.rect.width - pad * 2) // (swatch_size + 6))
         cx = self.rect.x + pad
-        cy = self.rect.y + pad + title.get_height() + 4
+        cy = self.rect.y + pad + title.get_height() + 8
         idx = 0
         for _ in range((len(self.colors) + cols_per_row - 1) // cols_per_row):
             for _ in range(cols_per_row):
                 if idx >= len(self.colors):
                     break
                 rect = pygame.Rect(cx, cy, swatch_size, swatch_size)
-                pygame.draw.rect(screen, self.colors[idx], rect)
-                pygame.draw.rect(screen, (180, 180, 180), rect, 1)
+                # 阴影
+                shadow_rect = pygame.Rect(cx + 2, cy + 2, swatch_size, swatch_size)
+                pygame.draw.rect(screen, (200, 200, 200), shadow_rect, border_radius=3)
+                # 颜色块
+                pygame.draw.rect(screen, self.colors[idx], rect, border_radius=4)
+                pygame.draw.rect(screen, (100, 100, 100), rect, 2, border_radius=4)
                 cx += swatch_size + 6
                 idx += 1
             cx = self.rect.x + pad
             cy += swatch_size + 6
 
-        # 画笔大小
-        brush_label = self.font.render("画笔大小", True, (60, 60, 60))
+        # 画笔大小 - 改进样式
+        brush_label = self.font.render("笔刷大小", True, (60, 60, 80))
         screen.blit(brush_label, (self.rect.x + pad, cy + 2))
         by = cy + 6 + brush_label.get_height()
         for i, size in enumerate(self.sizes):
             brect = pygame.Rect(self.rect.x + pad + i * (swatch_size + 10), by, swatch_size, swatch_size)
-            pygame.draw.rect(screen, (255, 255, 255), brect)
-            pygame.draw.rect(screen, (180, 180, 180), brect, 1)
-            pygame.draw.circle(screen, (40, 40, 40), brect.center, max(2, size // 2))
+            # 背景 - 浅蓝色
+            pygame.draw.rect(screen, (230, 240, 255), brect, border_radius=4)
+            pygame.draw.rect(screen, (150, 170, 220), brect, 2, border_radius=4)
+            # 预览圆圈 - 显示实际大小
+            pygame.draw.circle(screen, (80, 120, 200), brect.center, max(2, size // 2))
 
-        # 底部按钮
-        btn_h = 32
+        # 底部按钮 - 改进样式
+        btn_h = 36
         clear_rect = pygame.Rect(self.rect.x + pad, self.rect.bottom - btn_h - pad, (self.rect.width - pad * 3) // 2, btn_h)
         erase_rect = pygame.Rect(clear_rect.right + pad, clear_rect.y, clear_rect.width, btn_h)
-        pygame.draw.rect(screen, (230, 230, 230), clear_rect)
-        pygame.draw.rect(screen, (180, 180, 180), clear_rect, 1)
-        pygame.draw.rect(screen, (230, 230, 230), erase_rect)
-        pygame.draw.rect(screen, (180, 180, 180), erase_rect, 1)
-        lbl_clear = self.font.render("清空", True, (40, 40, 40))
-        lbl_erase = self.font.render("橡皮" if self._current_mode == "draw" else "画笔", True, (40, 40, 40))
+        
+        # 清空按钮 - 红色
+        pygame.draw.rect(screen, (240, 100, 100), clear_rect, border_radius=5)
+        pygame.draw.rect(screen, (150, 50, 50), clear_rect, 2, border_radius=5)
+        
+        # 橡皮/画笔按钮 - 绿色
+        pygame.draw.rect(screen, (100, 200, 100), erase_rect, border_radius=5)
+        pygame.draw.rect(screen, (50, 100, 50), erase_rect, 2, border_radius=5)
+        
+        lbl_clear = self.font.render("清空", True, (255, 255, 255))
+        lbl_erase = self.font.render("橡皮" if self._current_mode == "draw" else "画笔", True, (255, 255, 255))
         screen.blit(lbl_clear, (clear_rect.x + (clear_rect.width - lbl_clear.get_width()) // 2, clear_rect.y + (btn_h - lbl_clear.get_height()) // 2))
         screen.blit(lbl_erase, (erase_rect.x + (erase_rect.width - lbl_erase.get_width()) // 2, erase_rect.y + (btn_h - lbl_erase.get_height()) // 2))

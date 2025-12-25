@@ -138,11 +138,17 @@ class Canvas:
         """每帧渲染画布到屏幕
         
         - 将内部 surface 复制到屏幕
-        - 绘制灰色边框以区分区域
+        - 绘制专业风格的边框和阴影效果
         
         Args:
             screen: pygame 屏幕 Surface 对象
         """
-        screen.blit(self.surface, self.rect.topleft)  # 复制画布内容到屏幕
-        # 绘制灰色外框（2像素宽）
-        pygame.draw.rect(screen, (200, 200, 200), self.rect, 2)
+        # 绘制阴影（深灰色，偏移 3px）
+        shadow_rect = pygame.Rect(self.rect.x + 3, self.rect.y + 3, self.rect.width, self.rect.height)
+        pygame.draw.rect(screen, (180, 180, 180), shadow_rect)
+        
+        # 绘制画布主体
+        screen.blit(self.surface, self.rect.topleft)
+        
+        # 绘制专业风格的边框（蓝灰色，3像素宽）
+        pygame.draw.rect(screen, (150, 170, 200), self.rect, 3)

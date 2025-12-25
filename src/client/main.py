@@ -56,8 +56,13 @@ BUTTON_STAGGER = 0.2  # seconds between staggered starts
 
 # App state
 APP_STATE: Dict[str, Any] = {
-    "screen": "menu",  # menu | play
+    "screen": "menu",  # menu | play | settings
     "ui": None,
+    "settings": {
+        "player_name": "玩家",
+        "difficulty": "普通",  # 简单 | 普通 | 困难
+        "volume": 80,
+    },
 }
 
 
@@ -209,10 +214,12 @@ def create_buttons_from_config(
 def on_start() -> None:
     logger.info("Start pressed")
     APP_STATE["screen"] = "play"
+    APP_STATE["ui"] = None  # 重置 UI，强制重新构建
 
 
 def on_settings() -> None:
     logger.info("Settings pressed")
+    APP_STATE["screen"] = "settings"
 
 
 def on_quit() -> None:
@@ -314,6 +321,83 @@ def build_play_ui(screen_size: tuple) -> Dict[str, Any]:
     }
 
 
+def build_settings_ui(screen_size: tuple) -> Dict[str, Any]:
+    """构建设置界面组件。"""
+    sw, sh = screen_size
+    pad = 32
+    
+    # 返回菜单按钮
+    back_btn = Button(
+        x=pad,
+        y=pad,
+        width=120,
+        height=40,
+        text="← 返回菜单",
+        bg_color=(100, 100, 100),
+        fg_color=(255, 255, 255),
+        font_size=20,
+        font_name="Microsoft YaHei",
+    )
+    
+    # 玩家名字输入框
+    player_name_label = "玩家名字"
+    player_name_input = TextInput(
+        rect=pygame.Rect(pad + 200, pad, 300, 40),
+        font_name="Microsoft YaHei",
+        font_size=20,
+        placeholder=APP_STATE["settings"]["player_name"],
+    )
+    
+    # 难度选择按钮
+    easy_btn = Button(
+        x=pad + 200,
+        y=pad + 100,
+        width=100,
+        height=40,
+        text="简单",
+        bg_color=(76, 175, 80),
+        fg_color=(255, 255, 255),
+        font_size=20,
+        font_name="Microsoft YaHei",
+    )
+    
+    normal_btn = Button(
+        x=pad + 310,
+        y=pad + 100,
+        width=100,
+        height=40,
+        text="普通",
+        bg_color=(33, 150, 243),
+        fg_color=(255, 255, 255),
+        font_size=20,
+        font_name="Microsoft YaHei",
+    )
+    
+    hard_btn = Button(
+        x=pad + 420,
+        y=pad + 100,
+        width=100,
+        height=40,
+        text="困难",
+        bg_color=(244, 67, 54),
+        fg_color=(255, 255, 255),
+        font_size=20,
+        font_name="Microsoft YaHei",
+    )
+    
+    # 音量滑块范围
+    volume_slider_rect = pygame.Rect(pad + 150, pad + 250, 350, 25)
+    
+    return {
+        "back_btn": back_btn,
+        "player_name_input": player_name_input,
+        "easy_btn": easy_btn,
+        "normal_btn": normal_btn,
+        "hard_btn": hard_btn,
+        "volume_slider_rect": volume_slider_rect,
+    }
+
+
 def update_and_draw_hud(screen: pygame.Surface, ui: Dict[str, Any]) -> None:
     """更新倒计时并绘制顶部 HUD（计时、词、模式与画笔状态）。"""
     hud = ui.get("hud", {})
@@ -392,8 +476,10 @@ def main() -> None:
                     if APP_STATE["screen"] == "menu":
                         logo_orig, logo_base_size, logo_anchor = load_logo(LOGO_PATH, screen.get_size())
                         buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size(), logo_anchor)
-                    else:
+                    elif APP_STATE["screen"] == "play":
                         APP_STATE["ui"] = build_play_ui(screen.get_size())
+                    elif APP_STATE["screen"] == "settings":
+                        APP_STATE["ui"] = build_settings_ui(screen.get_size())
                 else:
                     # 根据当前界面分发事件
                     if APP_STATE["screen"] == "menu":
@@ -417,15 +503,30 @@ def main() -> None:
                             # 进入 play 时构建 UI
                             if APP_STATE["screen"] == "play" and APP_STATE["ui"] is None:
                                 APP_STATE["ui"] = build_play_ui(screen.get_size())
-                    else:
+                            # 进入 settings 时构建 UI
+                            elif APP_STATE["screen"] == "settings" and APP_STATE["ui"] is None:
+                                APP_STATE["ui"] = build_settings_ui(screen.get_size())
+                    elif APP_STATE["screen"] == "play":
                         ui = APP_STATE["ui"]
                         if ui is None:
-                            APP_STATE["ui"] = build_play_ui(screen.get_size())
-                            ui = APP_STATE["ui"]
-                        # 组件事件处理
-                        ui["canvas"].handle_event(event)
-                        ui["toolbar"].handle_event(event)
-                        ui["input"].handle_event(event)
+                            ui = build_play_ui(screen.get_size())
+                            APP_STATE["ui"] = ui
+                        # 先处理鼠标事件到组件（工具栏、画布、输入框）
+                        if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEMOTION:
+                            ui["toolbar"].handle_event(event)
+                            ui["canvas"].handle_event(event)
+                            ui["input"].handle_event(event)
+                            # 返回菜单按钮
+                            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                                if ui["back_btn"].is_clicked(event.pos, event.button):
+                                    APP_STATE["screen"] = "menu"
+                                    APP_STATE["ui"] = None  # 清除 UI
+                                    logo_orig, logo_base_size, logo_anchor = load_logo(LOGO_PATH, screen.get_size())
+                                    buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size(), logo_anchor)
+                        else:
+                            # 其他事件（键盘等）
+                            ui["input"].handle_event(event)
+                            ui["canvas"].handle_event(event)
                         # 快捷键（输入框未激活时）
                         if event.type == pygame.KEYDOWN and not ui["input"].active:
                             from src.shared.constants import BRUSH_COLORS, BRUSH_SIZES
@@ -463,14 +564,36 @@ def main() -> None:
                                                 hud["current_word"] = random.choice(words)
                                     except Exception:
                                         pass
+                    elif APP_STATE["screen"] == "settings":
+                        ui = APP_STATE["ui"]
+                        if ui is None:
+                            ui = build_settings_ui(screen.get_size())
+                            APP_STATE["ui"] = ui
+                        # 处理设置界面事件
+                        ui["player_name_input"].handle_event(event)
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                            if ui["back_btn"].is_clicked(event.pos, event.button):
+                            mouse_pos = event.pos
+                            # 返回按钮
+                            if ui["back_btn"].is_clicked(mouse_pos, event.button):
                                 APP_STATE["screen"] = "menu"
-                                # 回到菜单后重建菜单按钮
+                                APP_STATE["ui"] = None  # 清除 UI
                                 logo_orig, logo_base_size, logo_anchor = load_logo(LOGO_PATH, screen.get_size())
                                 buttons = create_buttons_from_config(BUTTONS_CONFIG, CALLBACKS, screen.get_size(), logo_anchor)
+                            # 难度选择
+                            elif ui["easy_btn"].is_clicked(mouse_pos, event.button):
+                                APP_STATE["settings"]["difficulty"] = "简单"
+                            elif ui["normal_btn"].is_clicked(mouse_pos, event.button):
+                                APP_STATE["settings"]["difficulty"] = "普通"
+                            elif ui["hard_btn"].is_clicked(mouse_pos, event.button):
+                                APP_STATE["settings"]["difficulty"] = "困难"
+                        # 音量滑块拖动
+                        elif event.type == pygame.MOUSEMOTION and pygame.mouse.get_pressed()[0]:
+                            if ui["volume_slider_rect"].collidepoint(event.pos):
+                                rel_x = event.pos[0] - ui["volume_slider_rect"].x
+                                vol = max(0, min(100, int(rel_x / ui["volume_slider_rect"].width * 100)))
+                                APP_STATE["settings"]["volume"] = vol
 
-            screen.fill((255, 255, 255))
+            screen.fill((245, 248, 255))  # 淡蓝白色背景，更柔和
 
             if APP_STATE["screen"] == "menu":
                 if logo_orig is not None:
@@ -514,17 +637,95 @@ def main() -> None:
 
                 for b in buttons:
                     b.draw(screen)
-            else:
+            elif APP_STATE["screen"] == "play":
                 ui = APP_STATE["ui"]
                 if ui is None:
                     ui = build_play_ui(screen.get_size())
                     APP_STATE["ui"] = ui
+                
+                # 游戏背景色
+                screen.fill((250, 250, 252))  # 淡灰白色
+                
                 # 渲染各组件
                 update_and_draw_hud(screen, ui)
                 ui["canvas"].draw(screen)
                 ui["toolbar"].draw(screen)
                 ui["chat"].draw(screen)
                 ui["input"].draw(screen)
+                ui["back_btn"].draw(screen)
+            elif APP_STATE["screen"] == "settings":
+                ui = APP_STATE["ui"]
+                if ui is None:
+                    ui = build_settings_ui(screen.get_size())
+                    APP_STATE["ui"] = ui
+                
+                # 绘制设置界面背景
+                screen.fill((240, 242, 250))  # 浅蓝色背景
+                
+                # 绘制设置面板（白色背景，有边框）
+                panel_rect = pygame.Rect(20, 20, screen.get_width() - 40, screen.get_height() - 40)
+                pygame.draw.rect(screen, (255, 255, 255), panel_rect)
+                pygame.draw.rect(screen, (180, 200, 220), panel_rect, 3)  # 蓝色边框
+                
+                try:
+                    font_title = pygame.font.SysFont("Microsoft YaHei", 40)
+                    font_label = pygame.font.SysFont("Microsoft YaHei", 24)
+                    font_value = pygame.font.SysFont("Microsoft YaHei", 20)
+                except Exception:
+                    font_title = pygame.font.SysFont(None, 40)
+                    font_label = pygame.font.SysFont(None, 24)
+                    font_value = pygame.font.SysFont(None, 20)
+                
+                # 标题
+                title = font_title.render("游戏设置", True, (50, 80, 150))
+                screen.blit(title, (50, 30))
+                
+                # 分隔线
+                pygame.draw.line(screen, (200, 200, 200), (50, 90), (screen.get_width() - 50, 90), 2)
+                
+                # 玩家名字标签与输入框
+                label = font_label.render("玩家名字:", True, (60, 60, 60))
+                screen.blit(label, (50, 110))
+                ui["player_name_input"].draw(screen)
+                
+                # 难度标签与按钮
+                label = font_label.render("游戏难度:", True, (60, 60, 60))
+                screen.blit(label, (50, 180))
+                ui["easy_btn"].draw(screen)
+                ui["normal_btn"].draw(screen)
+                ui["hard_btn"].draw(screen)
+                
+                # 当前难度显示
+                difficulty = APP_STATE["settings"]["difficulty"]
+                diff_colors = {"简单": (76, 175, 80), "普通": (33, 150, 243), "困难": (244, 67, 54)}
+                diff_color = diff_colors.get(difficulty, (100, 100, 100))
+                diff_label = font_value.render(f"当前难度: {difficulty}", True, diff_color)
+                screen.blit(diff_label, (450, 195))
+                
+                # 音量标签与滑块
+                label = font_label.render("音量:", True, (60, 60, 60))
+                screen.blit(label, (50, 270))
+                
+                # 音量滑块背景
+                slider_rect = ui["volume_slider_rect"]
+                pygame.draw.rect(screen, (220, 220, 220), slider_rect)
+                pygame.draw.rect(screen, (150, 170, 220), slider_rect, 2)
+                
+                # 音量进度条
+                vol = APP_STATE["settings"]["volume"]
+                progress_rect = pygame.Rect(slider_rect.x, slider_rect.y, slider_rect.width * vol / 100, slider_rect.height)
+                pygame.draw.rect(screen, (100, 150, 255), progress_rect)
+                
+                # 音量滑块游标
+                slider_x = slider_rect.x + (vol / 100.0) * slider_rect.width
+                pygame.draw.circle(screen, (50, 100, 200), (int(slider_x), int(slider_rect.centery)), 10)
+                pygame.draw.circle(screen, (100, 150, 255), (int(slider_x), int(slider_rect.centery)), 8)
+                
+                # 音量百分比显示
+                vol_label = font_value.render(f"音量: {vol}%", True, (80, 80, 80))
+                screen.blit(vol_label, (450, 280))
+                
+                # 返回按钮
                 ui["back_btn"].draw(screen)
 
             pygame.display.flip()

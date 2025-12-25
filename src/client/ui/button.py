@@ -45,8 +45,17 @@ class Button:
         self.text_rect = self.text_surface.get_rect(center=self.rect.center)
 
     def draw(self, screen):
-        """Draw the button on the given screen."""
-        pygame.draw.rect(screen, self.bg_color, self.rect)
+        """Draw the button on the given screen with shadow and rounded corners."""
+        # 绘制阴影
+        shadow_offset = 4
+        shadow_rect = pygame.Rect(self.rect.x + shadow_offset, self.rect.y + shadow_offset, self.rect.width, self.rect.height)
+        pygame.draw.rect(screen, (150, 150, 150), shadow_rect, border_radius=8)
+        
+        # 绘制按钮主体（圆角矩形）
+        pygame.draw.rect(screen, self.bg_color, self.rect, border_radius=8)
+        pygame.draw.rect(screen, (100, 100, 100), self.rect, 2, border_radius=8)  # 边框
+        
+        # 绘制文本
         screen.blit(self.text_surface, self.text_rect)
 
     def is_hovered(self, mouse_pos):
