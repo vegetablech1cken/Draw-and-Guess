@@ -68,11 +68,11 @@ class Toolbar:
             pad = 8
             swatch_size = 28
             title_h = 24  # 标题高度
-            
+
             cols_per_row = max(1, (self.rect.width - pad * 2) // (swatch_size + 6))
             rows = (len(self.colors) + cols_per_row - 1) // cols_per_row
             color_area_h = pad + title_h + 4 + rows * (swatch_size + 6) + pad
-            
+
             # 判断颜色点击
             cx, cy = pad, pad + title_h + 4
             idx = 0
@@ -177,15 +177,15 @@ class Toolbar:
         btn_h = 36
         clear_rect = pygame.Rect(self.rect.x + pad, self.rect.bottom - btn_h - pad, (self.rect.width - pad * 3) // 2, btn_h)
         erase_rect = pygame.Rect(clear_rect.right + pad, clear_rect.y, clear_rect.width, btn_h)
-        
+
         # 清空按钮 - 红色
         pygame.draw.rect(screen, (240, 100, 100), clear_rect, border_radius=5)
         pygame.draw.rect(screen, (150, 50, 50), clear_rect, 2, border_radius=5)
-        
+
         # 橡皮/画笔按钮 - 绿色
         pygame.draw.rect(screen, (100, 200, 100), erase_rect, border_radius=5)
         pygame.draw.rect(screen, (50, 100, 50), erase_rect, 2, border_radius=5)
-        
+
         lbl_clear = self.font.render("清空", True, (255, 255, 255))
         lbl_erase = self.font.render("橡皮" if self._current_mode == "draw" else "画笔", True, (255, 255, 255))
         screen.blit(lbl_clear, (clear_rect.x + (clear_rect.width - lbl_clear.get_width()) // 2, clear_rect.y + (btn_h - lbl_clear.get_height()) // 2))
