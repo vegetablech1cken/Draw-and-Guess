@@ -37,19 +37,9 @@ class Message:
 
 
 # TODO: 实现具体的消息类型
-class ConnectMessage(Message):
-    """连接消息"""
-
-    pass
-
-
-class DrawMessage(Message):
-    """绘图消息"""
-
-    pass
-
-
 class ChatMessage(Message):
-    """聊天消息"""
+    """聊天消息：包含房间、用户与文本。"""
 
-    pass
+    def __init__(self, room: str, user: str, text: str):
+        super().__init__("chat", {"room": room, "user": user, "text": text})
+

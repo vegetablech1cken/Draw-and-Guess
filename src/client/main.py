@@ -65,6 +65,10 @@ APP_STATE: Dict[str, Any] = {
         "difficulty": "普通",  # 简单 | 普通 | 困难
         "volume": 80,
         "theme": "light",  # light | dark
+        # 网络设置（局域网）
+        "server_host": "127.0.0.1",
+        "server_port": 5555,
+        "room": "lobby",
     },
 }
 
@@ -76,7 +80,7 @@ def load_settings() -> None:
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
-                for k in ("player_name", "difficulty", "volume", "theme"):
+                for k in ("player_name", "difficulty", "volume", "theme", "server_host", "server_port", "room"):
                     if k in data:
                         APP_STATE["settings"][k] = data[k]
     except Exception as exc:
@@ -317,9 +321,26 @@ def build_play_ui(screen_size: tuple) -> Dict[str, Any]:
     except Exception:
         pass
 
+    # 网络：连接并加入房间
+    from src.client.network.chat_client import ChatClient
+    net = ChatClient(APP_STATE["settings"].get("server_host", "127.0.0.1"), int(APP_STATE["settings"].get("server_port", 5555)))
+    player_name = APP_STATE["settings"].get("player_name", "玩家")
+    room_id = APP_STATE["settings"].get("room", "lobby")
+    connected = net.connect_and_join(room_id, player_name)
+    if connected:
+        def _on_chat(user: str, text: str) -> None:
+            chat.add_message(user or "", text or "")
+        net.on_chat = _on_chat
+    else:
+        chat.add_message("系统", "未连接到服务器，消息仅本地显示")
+
     def _on_submit(msg: str) -> None:
         safe = msg.replace("\n", " ")
         chat.add_message("你", safe)
+        try:
+            net.send_chat(safe)
+        except Exception:
+            pass
 
     text_input.on_submit = _on_submit
 
@@ -367,6 +388,7 @@ def build_play_ui(screen_size: tuple) -> Dict[str, Any]:
         "send_btn": send_btn,
         "back_btn": back_btn,
         "hud": hud_state,
+        "net": net,
     }
 
 
@@ -405,6 +427,38 @@ def build_settings_ui(screen_size: tuple) -> Dict[str, Any]:
         APP_STATE["settings"]["player_name"] = name.strip() or APP_STATE["settings"].get("player_name", "玩家")
         save_settings()
     player_name_input.on_submit = _update_player_name
+    
+    # 服务器地址输入
+    server_input = TextInput(
+        rect=pygame.Rect(pad + 200, pad + 50, 300, 40),
+        font_name="Microsoft YaHei",
+        font_size=20,
+        placeholder=APP_STATE["settings"].get("server_host", "127.0.0.1"),
+    )
+    try:
+        server_input.text = APP_STATE["settings"].get("server_host", "127.0.0.1")
+    except Exception:
+        pass
+    def _update_server_host(host: str) -> None:
+        APP_STATE["settings"]["server_host"] = host.strip() or APP_STATE["settings"].get("server_host", "127.0.0.1")
+        save_settings()
+    server_input.on_submit = _update_server_host
+
+    # 房间ID输入
+    room_input = TextInput(
+        rect=pygame.Rect(pad + 520, pad + 50, 300, 40),
+        font_name="Microsoft YaHei",
+        font_size=20,
+        placeholder=APP_STATE["settings"].get("room", "lobby"),
+    )
+    try:
+        room_input.text = APP_STATE["settings"].get("room", "lobby")
+    except Exception:
+        pass
+    def _update_room(room: str) -> None:
+        APP_STATE["settings"]["room"] = room.strip() or APP_STATE["settings"].get("room", "lobby")
+        save_settings()
+    room_input.on_submit = _update_room
     
     # 难度选择按钮
     easy_btn = Button(
@@ -483,6 +537,8 @@ def build_settings_ui(screen_size: tuple) -> Dict[str, Any]:
     return {
         "back_btn": back_btn,
         "player_name_input": player_name_input,
+        "server_input": server_input,
+        "room_input": room_input,
         "easy_btn": easy_btn,
         "normal_btn": normal_btn,
         "hard_btn": hard_btn,
@@ -680,6 +736,8 @@ def main() -> None:
                             APP_STATE["ui"] = ui
                         # 处理设置界面事件
                         ui["player_name_input"].handle_event(event)
+                        ui["server_input"].handle_event(event)
+                        ui["room_input"].handle_event(event)
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                             mouse_pos = event.pos
                             # 返回按钮
@@ -823,6 +881,14 @@ def main() -> None:
                 label = font_label.render("玩家名字:", True, label_color)
                 screen.blit(label, (50, 110))
                 ui["player_name_input"].draw(screen)
+
+                # 服务器地址与房间ID
+                label = font_label.render("服务器地址:", True, label_color)
+                screen.blit(label, (50, 160))
+                ui["server_input"].draw(screen)
+                label = font_label.render("房间ID:", True, label_color)
+                screen.blit(label, (520, 160))
+                ui["room_input"].draw(screen)
                 
                 # 难度标签与按钮
                 label = font_label.render("游戏难度:", True, label_color)

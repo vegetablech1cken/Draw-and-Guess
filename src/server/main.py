@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.shared.constants import DEFAULT_HOST, DEFAULT_PORT  # noqa: E402
+from src.server.network import ChatServer  # noqa: E402
 
 # 配置日志
 logging.basicConfig(
@@ -31,7 +32,8 @@ def main():
     logger.info("=" * 50)
 
     try:
-        # TODO: 实现服务器启动逻辑
+        server = ChatServer(DEFAULT_HOST, DEFAULT_PORT)
+        server.start()
         logger.info("服务器运行中，按 Ctrl+C 停止")
 
         # 保持服务器运行
@@ -45,6 +47,11 @@ def main():
     except Exception as e:
         logger.error(f"服务器错误: {e}", exc_info=True)
     finally:
+        try:
+            # 尝试停止服务器
+            server.stop()  # type: ignore[name-defined]
+        except Exception:
+            pass
         logger.info("服务器已停止")
 
 
