@@ -16,6 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pygame
 import json
 
+# Ensure logger is configured early so modules can use it
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from src.shared.constants import WINDOW_HEIGHT, WINDOW_TITLE, WINDOW_WIDTH
 from src.client.ui.button import Button
 from src.client.ui.buttons_config import BUTTONS_CONFIG
@@ -23,35 +27,22 @@ from src.client.ui.canvas import Canvas
 from src.client.ui.toolbar import Toolbar
 from src.client.ui.text_input import TextInput
 from src.client.ui.chat import ChatPanel
+# Project root and resource paths
+ROOT = Path(__file__).parent.parent.parent
+SETTINGS_PATH = ROOT / "settings.json"
+LOGO_PATH = ROOT / "assets" / "images" / "logo.png"
 
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("client.log"), logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
-
-
-# Module-level mappings to avoid adding dynamic attributes to Button
+# Runtime maps used by create_buttons_from_config / event dispatch
 BUTTON_ORIG_BG: Dict[int, tuple] = {}
 BUTTON_HOVER_BG: Dict[int, tuple] = {}
 BUTTON_CALLBACKS: Dict[int, Callable[..., Any]] = {}
 BUTTON_ANIMS: Dict[int, Dict[str, Any]] = {}
 
-
-# Assets and logo path (adjust if you keep logo elsewhere)
-ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
-LOGO_PATH = ASSETS_DIR / "images" / "logo.png"
-SETTINGS_PATH = Path(__file__).parent.parent.parent / "data" / "settings.json"
-
-# Logo animation parameters
-LOGO_BREATH_AMPLITUDE = 0.06  # 6% size variation
-LOGO_BREATH_FREQ = 0.2  # Hz
-LOGO_SWING_AMP = 3.0  # degrees
-LOGO_SWING_FREQ = 0.1  # Hz
-
+# Logo animation defaults
+LOGO_BREATH_AMPLITUDE = 0.06
+LOGO_BREATH_FREQ = 0.5
+LOGO_SWING_AMP = 4.0
+LOGO_SWING_FREQ = 0.2
 # Button entrance animation parameters
 BUTTON_SLIDE_DURATION = 1.0  # seconds
 BUTTON_STAGGER = 0.2  # seconds between staggered starts
