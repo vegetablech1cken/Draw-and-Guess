@@ -8,6 +8,7 @@ import logging
 import sys
 from pathlib import Path
 import math
+import uuid
 from typing import Any, Callable, Dict, List, Optional
 
 # 添加项目根目录到路径（保留以便直接运行脚本时能找到包）
@@ -21,6 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from src.shared.constants import WINDOW_HEIGHT, WINDOW_TITLE, WINDOW_WIDTH
+from src.client.network import NetworkClient
 from src.client.ui.button import Button
 from src.client.ui.buttons_config import BUTTONS_CONFIG
 from src.client.ui.canvas import Canvas
@@ -57,7 +59,9 @@ APP_STATE: Dict[str, Any] = {
         "volume": 80,
         "theme": "light",  # light | dark
         "fullscreen": False,
+        "player_id": None,
     },
+    "net": None,
     # resize 防抖：在窗口调整结束后再重建 UI，减少频繁重建导致的卡顿
     "pending_resize_until": 0,
     "pending_resize_size": None,
@@ -71,7 +75,7 @@ def load_settings() -> None:
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
-                for k in ("player_name", "difficulty", "volume", "theme", "fullscreen"):
+                for k in ("player_name", "difficulty", "volume", "theme", "fullscreen", "player_id"):
                     if k in data:
                         APP_STATE["settings"][k] = data[k]
     except Exception as exc:
@@ -87,6 +91,23 @@ def save_settings() -> None:
     except Exception as exc:
         logger.warning("保存设置失败: %s", exc)
 
+
+def ensure_player_identity() -> str:
+    """确保存在稳定的 player_id（用于房间聊天标识）。"""
+    pid = APP_STATE["settings"].get("player_id")
+    if not pid:
+        pid = str(uuid.uuid4())
+        APP_STATE["settings"]["player_id"] = pid
+        save_settings()
+    return str(pid)
+
+
+def get_network_client() -> NetworkClient:
+    net = APP_STATE.get("net")
+    if net is None:
+        net = NetworkClient()
+        APP_STATE["net"] = net
+    return net
 
 
 def load_logo(path: Path, screen_size: tuple):
@@ -262,6 +283,12 @@ def on_settings() -> None:
 
 def on_quit() -> None:
     logger.info("Quit pressed")
+    try:
+        net = APP_STATE.get("net")
+        if net:
+            net.close()
+    except Exception:
+        pass
     pygame.quit()
     sys.exit(0)
 
@@ -319,6 +346,12 @@ def build_play_ui(screen_size: tuple) -> Dict[str, Any]:
 
     def _on_submit(msg: str) -> None:
         safe = msg.replace("\n", " ")
+        try:
+            net = APP_STATE.get("net")
+            if net and net.connected:
+                net.send_chat(safe)
+        except Exception:
+            pass
         chat.add_message("你", safe)
 
     text_input.on_submit = _on_submit
@@ -411,6 +444,39 @@ def build_settings_ui(screen_size: tuple) -> Dict[str, Any]:
     }
 
 
+def process_network_messages(ui: Optional[Dict[str, Any]]) -> None:
+    """从网络事件队列消费消息并更新 UI。"""
+    if not ui:
+        return
+    net = APP_STATE.get("net")
+    if net is None:
+        return
+
+    self_id = APP_STATE.get("settings", {}).get("player_id")
+
+    for msg in net.drain_events():
+        data = msg.data or {}
+        if msg.type == "chat":
+            by_id = data.get("by") or data.get("by_id")
+            name = data.get("by_name") or by_id or "玩家"
+            if by_id and self_id and str(by_id) == str(self_id):
+                # 已在本地显示，跳过重复
+                continue
+            label = "你" if by_id and self_id and str(by_id) == str(self_id) else name
+            text = str(data.get("text") or "").replace("\n", " ")
+            try:
+                ui["chat"].add_message(label, text)
+            except Exception:
+                pass
+        elif msg.type == "room_state":
+            hud = ui.get("hud")
+            if hud:
+                try:
+                    hud["round_time_left"] = data.get("time_left", hud.get("round_time_left", 60))
+                except Exception:
+                    pass
+
+
 def update_and_draw_hud(screen: pygame.Surface, ui: Dict[str, Any]) -> None:
     """更新倒计时并绘制顶部 HUD（计时、词、模式与画笔状态）。"""
     hud = ui.get("hud", {})
@@ -477,14 +543,14 @@ def main() -> None:
         except Exception as e:
             logger.warning(f"初始化输入法支持失败: {e}")
         
-        # 加载持久化设置
+        # 加载持久化设置并确保玩家标识
         load_settings()
+        ensure_player_identity()
 
         # Create a window or fullscreen depending on saved settings
         flags = pygame.RESIZABLE
         if APP_STATE["settings"].get("fullscreen"):
             flags = pygame.FULLSCREEN
-            # For fullscreen, passing (0,0) lets SDL choose current display mode
             screen = pygame.display.set_mode((0, 0), flags)
         else:
             screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), flags)
@@ -580,6 +646,18 @@ def main() -> None:
                                 elif cid == "play_send":
                                     ui["send_btn"] = pb
                             APP_STATE["ui"] = ui
+                            # 确保网络连接并加入房间
+                            player_id = ensure_player_identity()
+                            net = get_network_client()
+                            if not net.connected:
+                                ok = net.connect(APP_STATE["settings"].get("player_name", "玩家"), player_id, room_id="default")
+                                try:
+                                    if ok:
+                                        ui["chat"].add_message("系统", "已连接到服务器，已加入房间 default")
+                                    else:
+                                        ui["chat"].add_message("系统", "无法连接到服务器，聊天仅本地显示")
+                                except Exception:
+                                    pass
 
                         # 处理按钮事件
                         if ui.get("back_btn"):
@@ -670,6 +748,9 @@ def main() -> None:
                                 vol = max(0, min(100, int(rel_x / ui["volume_slider_rect"].width * 100)))
                                 APP_STATE["settings"]["volume"] = vol
                                 save_settings()
+
+            if APP_STATE["screen"] == "play":
+                process_network_messages(APP_STATE.get("ui"))
 
             # 如果存在待处理的 resize 且防抖期已过，则执行一次性的重建操作
             now_tick = pygame.time.get_ticks()

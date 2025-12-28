@@ -201,7 +201,11 @@ class NetworkServer:
 			self.broadcast(Message("draw_sync", payload), exclude=sess)
 		elif t == MSG_CHAT:
 			# // 聊天广播
-			payload = {"by": sess.player_id, "text": str(data.get("text") or "")}
+			payload = {
+				"by": sess.player_id,
+				"by_name": sess.player_name,
+				"text": str(data.get("text") or ""),
+			}
 			self.broadcast(Message("chat", payload))
 		elif t == MSG_DISCONNECT:
 			self._on_disconnect(sess)
